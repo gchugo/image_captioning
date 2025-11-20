@@ -27,7 +27,7 @@ class Trainer:
         loss_ *= mask
         return tf.reduce_mean(loss_)
 
-    @tf.function  # Ahora SÍ funciona bien aquí
+    # @tf.function  # Ahora SÍ funciona bien aquí
     def train_step(self, img_tensor, target, start_token_id):
         loss = 0
         
@@ -93,7 +93,7 @@ class TransformerTrainer:
         combined_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
         return combined_mask
 
-    @tf.function
+    # @tf.function
     def train_step(self, img_tensor, target):
         tar_inp = target[:, :-1]
         tar_real = target[:, 1:]
@@ -117,7 +117,7 @@ class TransformerTrainer:
 
         return loss
     
-    @tf.function
+    # @tf.function
     def validate_step(self, img_tensor, target):
         tar_inp = target[:, :-1]
         tar_real = target[:, 1:]
