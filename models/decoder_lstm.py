@@ -9,36 +9,6 @@ class BahdanauAttention(tf.keras.Model):
         self.V = layers.Dense(1)
 
     def call(self, features, hidden):
-        # features (Encoder output): (batch_size, 49, embedding_dim)
-        # hidden (Decoder hidden state): (batch_size, hidden_size)
-        
-        # Expandimos hidden para que tenga dimensión de tiempo: (batch_size, 1, hidden_size)
-        hidden_with_time_axis = tf.expand_dims(hidden, 1)
-
-        # Calculamos el score de atención
-        # score shape: (batch_size, 49, 1)
-        score = self.V(tf.nn.tanh(self.W1(features) + self.W2(hidden_with_time_axis)))
-
-        # Pesos de atención (softmax para que sumen 1)
-        attention_weights = tf.nn.softmax(score, axis=1)
-
-        # Vector de contexto (suma ponderada de las características de la imagen)
-        context_vector = attention_weights * features
-        context_vector = tf.reduce_sum(context_vector, axis=1)
-
-        return context_vector, attention_weights
-
-import tensorflow as tf
-from tensorflow.keras import layers
-
-class BahdanauAttention(tf.keras.Model):
-    def __init__(self, units):
-        super(BahdanauAttention, self).__init__()
-        self.W1 = layers.Dense(units)
-        self.W2 = layers.Dense(units)
-        self.V = layers.Dense(1)
-
-    def call(self, features, hidden):
         hidden_with_time_axis = tf.expand_dims(hidden, 1)
         score = self.V(tf.nn.tanh(self.W1(features) + self.W2(hidden_with_time_axis)))
         attention_weights = tf.nn.softmax(score, axis=1)
