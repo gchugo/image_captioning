@@ -1,6 +1,7 @@
 import tensorflow as tf
 from tensorflow.keras import layers
 
+# --- 1. ATENCIÓN ---
 class BahdanauAttention(tf.keras.Model):
     def __init__(self, units):
         super(BahdanauAttention, self).__init__()
@@ -16,15 +17,19 @@ class BahdanauAttention(tf.keras.Model):
         context_vector = tf.reduce_sum(context_vector, axis=1)
         return context_vector, attention_weights
 
+# --- 2. DECODER (BLINDADO CONTRA ERRORES DE KERAS 3) ---
 class RNN_Decoder(tf.keras.Model):
     def __init__(self, embedding_dim, units, vocab_size):
         super(RNN_Decoder, self).__init__()
         self.units = units
         self.embedding = layers.Embedding(vocab_size, embedding_dim)
+        
+        # Usamos GRU que es más fácil de manejar (retorna 2 cosas)
         self.gru = layers.GRU(self.units,
                               return_sequences=True,
                               return_state=True,
                               recurrent_initializer='glorot_uniform')
+        
         self.fc1 = layers.Dense(self.units)
         self.fc2 = layers.Dense(vocab_size)
         self.attention = BahdanauAttention(self.units)
@@ -39,8 +44,13 @@ class RNN_Decoder(tf.keras.Model):
         # 3. Concatenar
         x = tf.concat([tf.expand_dims(context_vector, 1), x], axis=-1)
 
-        # 4. GRU (CORREGIDO: Pasamos initial_state)
-        output, state = self.gru(x, initial_state=hidden)
+        # 4. RNN (GRU)
+        # TRUCO: Usamos 'output, *state'
+        # Esto funciona si la RNN devuelve 2 cosas (GRU) o 3 cosas (LSTM)
+        # El * agrupa lo sobrante en una lista, y cogemos el primer elemento.
+        result = self.gru(x, initial_state=hidden)
+        output = result[0]
+        state = result[1] # Nuevo estado oculto
 
         # 5. Clasificación
         x = self.fc1(output)
