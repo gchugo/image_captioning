@@ -56,6 +56,15 @@ def evaluate(image_path, encoder, decoder, tokenizer, max_len, attention_feature
 
     return result, attention_plot
 
+def create_look_ahead_mask(size):
+    """
+    Crea una máscara triangular para ocultar los tokens futuros en una secuencia.
+    Devuelve una matriz de (size, size) con 1s en la parte triangular inferior y 0s en el resto.
+    """
+    # tf.linalg.band_part crea una banda. -1 significa 'todo lo anterior', 0 'nada de lo posterior'.
+    mask = 1 - tf.linalg.band_part(tf.ones((size, size)), -1, 0)
+    return mask  # (seq_len, seq_len)
+
 
 def calculate_bleu_score(encoder, decoder, tokenizer, max_len, test_img_paths, all_captions_dict, sample_size=None):
     """
@@ -118,3 +127,42 @@ def calculate_bleu_score(encoder, decoder, tokenizer, max_len, test_img_paths, a
     print(f'BLEU-4: {b4:.4f}')
     
     return b1, b2, b3, b4
+
+def evaluate_transformer(image_path, encoder, decoder, tokenizer, max_len):
+    # 1. Procesar Imagen
+    img = load_image_for_eval(image_path)[0]
+    img = tf.expand_dims(img, 0)
+    
+    # 2. Encoder
+    img_features = encoder(img, training=False)
+    
+    # 3. Inicializar secuencia con <start>
+    start_token = tokenizer.word_index['<start>']
+    end_token = tokenizer.word_index['<end>']
+    
+    output = tf.expand_dims([start_token], 0)
+    
+    # 4. Bucle de Generación
+    for i in range(max_len):
+        # Máscaras (Padding no hace falta pq batch=1, Look-ahead sí)
+        look_ahead_mask = create_look_ahead_mask(tf.shape(output)[1])
+        
+        # Decoder: Pasamos TODA la secuencia generada hasta ahora
+        predictions, attention_weights = decoder(
+            output, img_features, training=False, look_ahead_mask=look_ahead_mask, padding_mask=None
+        )
+        
+        # Miramos solo la última palabra predicha
+        predictions = predictions[:, -1:, :]  # (batch_size, 1, vocab_size)
+        
+        predicted_id = tf.argmax(predictions, axis=-1).numpy()[0][0]
+        
+        # Concatenar a la entrada del siguiente paso
+        output = tf.concat([output, tf.expand_dims([predicted_id], 0)], axis=-1)
+        
+        if predicted_id == end_token:
+            break
+            
+    # Decodificar a texto
+    result = [tokenizer.index_word[i] for i in output.numpy()[0] if i not in [start_token, end_token]]
+    return result
